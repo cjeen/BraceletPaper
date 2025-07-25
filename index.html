@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html>
+
+<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="From Gallery to Wrist: Realistic 3D Bracelet Insertion in Videos - A hybrid pipeline combining 3D Gaussian Splatting and 2D diffusion models for temporal consistency and photorealism">
+    <meta name="keywords" content="3D object insertion, video editing, 3D Gaussian Splatting, diffusion models, computer vision, augmented reality">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>From Gallery to Wrist: Realistic 3D Bracelet Insertion in Videos</title>
+
+    <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-1Z9DR6XZBR"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-1Z9DR6XZBR');
+    </script> -->
+  
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma-carousel@4.0.4/dist/css/bulma-carousel.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+    <link rel="stylesheet" href="static/css/index.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.theme.default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/owl.carousel.min.js"></script>
+    
+    <script>
+      $(document).ready(function(){
+        function initializeCarousel(carouselId, indicatorId, autoplayTimeout) {
+          var totalItems = $(carouselId + ' .item').length;
+          var $indicator = $(indicatorId);
+          var playCount = 0;
+          var timesCycled = 0;
+          
+          var owl = $(carouselId).owlCarousel({
+            items: 1,
+            loop: true,
+            margin: 10,
+            nav: true,
+            autoplay: true,
+            autoplayTimeout: autoplayTimeout,
+            autoplayHoverPause: false,
+            navText: [
+              "<div class='nav-button owl-prev' style='font-size: 6rem;'>‹</div>",
+              "<div class='nav-button owl-next' style='font-size: 6rem;'>›</div>"
+            ],
+            responsive: {
+              0: { items: 1, nav: true, loop: true  },
+              600: { items: 1, nav: true, loop: true  },
+              1000: { items: 1, nav: true, loop: true }
+            },
+            onInitialized: updateIndicator,
+            onTranslated: function(event) {
+              updateIndicator(event);
+              playCount++;
+              if (playCount >= totalItems) {
+                playCount = 0;
+                timesCycled++;
+                if (timesCycled >= 3) {
+                  $(carouselId).trigger('stop.owl.autoplay');
+                }
+              }
+            }
+          });
+
+          // Add event listeners to navigation buttons to reset autoplay
+          $(carouselId).on('click', '.owl-prev, .owl-next', function() {
+            owl.trigger('stop.owl.autoplay');
+            owl.trigger('play.owl.autoplay', [autoplayTimeout]);
+          });
+
+          function updateIndicator(event) {
+            var currentIndex = event.item.index - event.relatedTarget._clones.length / 2 + 1;
+            if (currentIndex > totalItems) {
+              currentIndex = currentIndex - totalItems;
+            }
+            $indicator.text(currentIndex + '/' + totalItems);
+          }
+        }
+
+        // Initialize results video carousel
+        initializeCarousel('#carousel-results', '#carousel-indicator-results', 8000);
+      });
+    </script>
+    
+    <style>
+      /* 重要的布局重置 */
+      * {
+        box-sizing: border-box;
+      }
+      
+      .section {
+        float: none !important;
+        clear: both !important;
+      }
+      
+      /* Section background colors */
+      .section-white { background-color: #ffffff; }
+      .section-light-gray { background-color: #f8f9fa; }
+      .section-light-blue { background-color: #f0f8ff; }
+      .section-light-green { background-color: #f0fff0; }
+
+      /* Video with progress bar */
+      .video-container {
+        position: relative;
+        width: 100%;
+        margin: 2rem 0;
+      }
+
+      .video-container video {
+        width: 100%;
+        height: auto;
+        border-radius: 10px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      }
+
+      /* 确保section正常堆叠布局 */
+      .section {
+        display: block;
+        width: 100%;
+        clear: both;
+      }
+
+      .container.is-max-desktop {
+        display: block;
+        width: 100%;
+      }
+
+      /* 添加悬停效果 */
+      .video-hover-effect {
+        transition: all 0.3s ease;
+      }
+
+      .video-hover-effect:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.2) !important;
+      }
+
+      /* 添加箭头脉冲动画 */
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.1);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      /* 按钮样式增强 */
+      .button.is-dark:hover {
+        background-color: #363636;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      }
+
+      /* 标题样式增强 */
+      .publication-title {
+        font-weight: 600;
+        line-height: 1.2;
+      }
+
+      /* 作者信息样式 */
+      .publication-authors {
+        margin-bottom: 1rem;
+      }
+
+      .author-block {
+        margin-right: 0.5rem;
+      }
+
+      /* 图片样式 */
+      .teaser-image {
+        max-width: 100%;
+        height: auto;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        margin: 2rem 0;
+      }
+
+      /* 轮播样式 */
+      .nav-button {
+        color: #333;
+        background-color: rgba(255, 255, 255, 0.7);
+        border-radius: 50%;
+        padding: 0.5rem;
+        margin: 0 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .owl-prev, .owl-next {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1000;
+      }
+      
+      .owl-prev { left: -2rem; }
+      .owl-next { right: -2rem; }
+      
+      .owl-carousel .owl-item { 
+        display: flex; 
+        justify-content: center; 
+        align-items: center;
+        margin-bottom: 0; 
+        padding-bottom: 0; 
+      }
+      
+      .owl-carousel .item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+      }
+      
+      #carousel-results {
+        padding: 15px 10px 5px 10px !important;
+      }
+      
+      #carousel-results .owl-stage-outer {
+        width: 100%;
+      }
+      
+      #carousel-results .owl-stage {
+        width: 100%;
+      }
+
+      #carousel-results .item {
+        width: 100%;
+        display: block;
+      }
+
+      #carousel-results video {
+        max-width: 100% !important;
+        max-height: 400px !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain !important;
+        border-radius: 15px !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2) !important;
+        transition: transform 0.3s ease;
+      }
+
+      #carousel-results video:hover {
+        transform: translateY(-5px);
+      }
+
+    </style>
+  
+</head>
+<body>
+
+<section class="hero section-white">
+  <div class="hero-body">
+    <div class="container is-max-widescreen">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">From Gallery to Wrist: <br> Realistic 3D Bracelet Insertion in Videos</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://cjeen.github.io/">Chenjian Gao</a><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://dinglihe.github.io/">Lihe Ding</a><sup>1</sup>,</span>
+            <span class="author-block">
+              <a href="https://openreview.net/profile?id=~Rui_Han4">Rui Han</a><sup>2</sup>,</span>
+            <span class="author-block">
+              <a href="https://openreview.net/profile?id=~Zhanpeng_Huang1">Zhanpeng Huang</a><sup>2</sup><sup><i class="fas fa-envelope" style="font-size: 0.7rem; margin-left: 2px;"></i></sup>,</span>
+            <span class="author-block">
+              <a href="https://openreview.net/profile?id=~Zibin_Wang1">Zibin Wang</a><sup>2</sup>,</span>
+            <span class="author-block">
+              <a href="https://tianfan.info/">Tianfan Xue</a><sup>1,3</sup><sup><i class="fas fa-envelope" style="font-size: 0.7rem; margin-left: 2px;"></i></sup></span>
+          </div>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>The Chinese University of Hong Kong, <sup>2</sup>SenseTime Research, <sup>3</sup>Shanghai AI Laboratory</span>
+          </div>
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <span class="link-block">
+                <a href="#" class="external-link button is-normal is-rounded is-dark" target="_blank" rel="noopener noreferrer">
+                  <span class="icon"><i class="fas fa-file-pdf"></i></span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="#" class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fab fa-github"></i></span>
+                  <span>Code (coming soon)</span>
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero teaser section-light-gray">
+    <div class="container is-max-desktop">
+      <div class="hero-body">
+        <div class="content has-text-centered" style="margin-top: 3rem; margin-bottom: 2rem;">
+          <h2 class="title is-4" style="margin-bottom: 1rem;">🎥 Watch Our Demo</h2>
+        </div>
+        <div class="video-container">
+          <video id="teaser" autoplay loop playsinline controls class="video-hover-effect">
+            <source src="static/demo.mp4" type="video/mp4">
+          </video>
+        </div>
+        <h2 class="subtitle has-text-centered">
+          Our hybrid pipeline combines 3D Gaussian Splatting and 2D diffusion models for realistic bracelet insertion with temporal consistency and photorealistic lighting.
+        </h2>
+      </div>
+    </div>
+</section>
+  
+<section class="hero teaser section-white">
+  <div class="container is-max-desktop">
+      <div class="hero-body">
+        <div class="content has-text-centered" style="margin-top: 3rem; margin-bottom: 2rem;">
+          <h2 class="title is-3" style="margin-bottom: 1rem;">Abstract</h2>
+        </div>
+        <div class="content has-text-justified" style="max-width: 80%; margin: 0 auto;">
+          Inserting 3D objects into videos is a longstanding challenge in computer graphics with applications in augmented reality, virtual try-on, and video composition. Achieving both temporal consistency, or realistic lighting remains difficult, particularly in dynamic scenarios with complex object motion, perspective changes, and varying illumination. While 2D diffusion models have shown promise for producing photorealistic edits, they often struggle with maintaining temporal coherence across frames. Conversely, traditional 3D rendering methods excel in spatial and temporal consistency but fall short in achieving photorealistic lighting. In this work, we propose a hybrid object insertion pipeline that combines the strengths of both paradigms. Specifically, we focus on inserting bracelets into dynamic wrist scenes, leveraging the high temporal consistency of 3D Gaussian Splatting (3DGS) for initial rendering and refining the results using a 2D diffusion-based enhancement model to ensure realistic lighting interactions. Our method introduces a shading-driven pipeline that separates intrinsic object properties (albedo, shading, reflectance) and refines both shading and sRGB images for photorealism. To maintain temporal coherence, we optimize the 3DGS model with multi-frame weighted adjustments. This is the first approach to synergize 3D rendering and 2D diffusion for video object insertion, offering a robust solution for realistic and consistent video editing.
+        </div>
+      </div>
+    </div>
+</section>
+
+<section class="section section-light-blue">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full">
+        <h2 class="title is-3">Motivation</h2>
+        
+        <div class="has-text-centered">
+          <img src="static/images/motivation.png" alt="Motivation" class="teaser-image" style="width: 100%; border-radius: 0;" />
+        </div>
+        <div class="content has-text-justified">
+          <p>
+            Traditional video editing methods struggle to insert objects with both <strong><em>temporal consistency</em></strong> 
+            and <strong><em>photorealistic appearance</em></strong>.
+            We propose a hybrid pipeline for inserting 3D objects into videos, combining 3D Gaussian Splatting rendering for temporal consistency and a 2D diffusion-based enhancement for photorealistic lighting. In this example, a virtual bracelet is inserted onto a wrist in a dynamic scene. The 3D representation ensures temporal consistency and correct handling of occlusions as the wrist moves, while the 2D image priors enhance realism by synthesizing realistic shading. Our approach bridges the gap between 3D rendering and 2D diffusion models, achieving both temporal coherence and realism.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-white">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full">
+        <h2 class="title is-3">Method Overview</h2>
+        <div class="has-text-centered">
+          <img src="static/images/model.png" alt="Method Overview" class="teaser-image" style="width: 100%; border-radius: 0;" />
+        </div>
+        <div class="content has-text-justified">
+          <p>
+            Our pipeline inserts a 3D bracelet into a video while maintaining temporal consistency and realistic lighting. 1) We first compute motion and occlusion using 3D Gaussian Splatting (3DGS), leveraging 2D tracking points to align the bracelet with the wrist’s motion and monocular depth maps to handle occlusions. 2) Next, we enhance realism through a shading-driven approach, decomposing the image into albedo and shading components. The shading is refined using a diffusion-based model to adapt the bracelet’s lighting to the scene, while the albedo ensures color consistency. 3) Finally, we apply temporal smoothing to the bracelet and shadows, optimizing the 3DGS model and interpolating frames to ensure smooth transitions across the video.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-light-green">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full">
+        <h2 class="title is-3">Results</h2>
+        <div class="content has-text-justified" style="margin-bottom: 2rem;">
+          <p>
+            Our method achieves realistic bracelet insertion with proper lighting, shadows, and temporal consistency.
+          </p>
+        </div>
+
+        <div class="container is-fullhd" style="max-width: none; padding: 0 2rem;">
+          <div id="carousel-results" class="owl-carousel">
+            
+            <div class="item">
+              <div style="text-align: center;">
+                <video autoplay muted loop playsinline controls style="
+                  width: 100%; 
+                  max-width: 800px;
+                  height: auto;
+                  border-radius: 15px; 
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+                ">
+                  <source src="static/videos/1.mp4" type="video/mp4">
+                </video>
+              </div>
+            </div>
+
+            <div class="item">
+              <div style="text-align: center;">
+                <video autoplay muted loop playsinline controls style="
+                  width: 100%; 
+                  max-width: 800px;
+                  height: auto;
+                  border-radius: 15px; 
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+                ">
+                  <source src="static/videos/2.mp4" type="video/mp4">
+                </video>
+              </div>
+            </div>
+
+            <div class="item">
+              <div style="text-align: center;">
+                <video autoplay muted loop playsinline controls style="
+                  width: 100%; 
+                  max-width: 800px;
+                  height: auto;
+                  border-radius: 15px; 
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+                ">
+                  <source src="static/videos/3.mp4" type="video/mp4">
+                </video>
+              </div>
+            </div>
+
+            <div class="item">
+              <div style="text-align: center;">
+                <video autoplay muted loop playsinline controls style="
+                  width: 100%; 
+                  max-width: 800px;
+                  height: auto;
+                  border-radius: 15px; 
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+                ">
+                  <source src="static/videos/4.mp4" type="video/mp4">
+                </video>
+              </div>
+            </div>
+
+            <div class="item">
+              <div style="text-align: center;">
+                <video autoplay muted loop playsinline controls style="
+                  width: 100%; 
+                  max-width: 800px;
+                  height: auto;
+                  border-radius: 15px; 
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+                ">
+                  <source src="static/videos/5.mp4" type="video/mp4">
+                </video>
+              </div>
+            </div>
+
+            <div class="item">
+              <div style="text-align: center;">
+                <video autoplay muted loop playsinline controls style="
+                  width: 100%; 
+                  max-width: 800px;
+                  height: auto;
+                  border-radius: 15px; 
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+                ">
+                  <source src="static/videos/6.mp4" type="video/mp4">
+                </video>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-white" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@inproceedings{gao2025gallery,
+      title={From Gallery to Wrist: Realistic 3D Bracelet Insertion in Videos},
+      author={Gao, Chenjian and Ding, Lihe and Han, Rui and Huang, Zhanpeng and Wang, Zibin and Xue, Tianfan},
+      booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
+      year={2025},
+}
+  </code></pre>
+  </div>
+</section>
+
+</body>
+
+<footer class="footer section-light-gray">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content has-text-left">
+          <p>
+            This page was built using the <a href="https://github.com/nerfies/nerfies.github.io" target="_blank">Academic Project Page Template</a> which was adopted from the <a href="https://nerfies.github.io/" target="_blank">Nerfies</a> project page. 
+            You are free to borrow the source of this website, we just ask that you link back to this page in the footer.
+          </p>
+          <p>
+            This website is licensed under a <a href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</html>
